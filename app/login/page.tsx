@@ -1,119 +1,123 @@
-import Link from "next/link";
-import { headers } from "next/headers";
-import { createClient } from "@/utils/supabase/server";
-import { redirect } from "next/navigation";
-import { SubmitButton } from "./submit-button";
+"use client";
+import BackButton from "@/components/BackButton";
+import { ChangeEvent, FormEvent, useState } from "react";
+import { signInOtp, verifyOtp } from "@/utils/auth";
+import { Button, Input } from "@supabase/ui";
 
-export default function Login({
-  searchParams,
-}: {
-  searchParams: { message: string };
-}) {
-  const signIn = async (formData: FormData) => {
-    "use server";
+interface AuthState {
+  email: string;
+  otp: string;
+}
 
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const supabase = createClient();
+const initialAuth: AuthState = {
+  email: "",
+  otp: ""
+};
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+export default function Login() {
+  const [pendingStatus, setPendingStatus] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [authState, setAuthState] = useState<AuthState>(initialAuth);
+  const [authError, setAuthError] = useState<AuthState>(initialAuth);
 
-    if (error) {
-      return redirect("/login?message=Could not authenticate user");
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    setLoading(true);
+    e.preventDefault();
+    if (authState.email === "") {
+      return setAuthError({ email: "Email is required", otp: "" });
     }
 
-    return redirect("/protected");
-  };
-
-  const signUp = async (formData: FormData) => {
-    "use server";
-
-    const origin = headers().get("origin");
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const supabase = createClient();
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${origin}/auth/callback`,
-      },
-    });
+    const responseData = await signInOtp(authState.email);
+    const { data, error } = JSON.parse(responseData);
 
     if (error) {
-      return redirect("/login?message=Could not authenticate user");
+      setAuthError({ email: error, otp: "" });
+      return;
+    }
+    console.log("--- SignOtp ---", data);
+
+    setPendingStatus(true);
+    setLoading(false);
+  };
+
+  const handleOtpSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    setLoading(true);
+    e.preventDefault();
+    if (authState.otp === "") {
+      return setAuthError({ email: "", otp: "Please enter the code" });
     }
 
-    return redirect("/login?message=Check email to continue sign in process");
+    const errorMsg = await verifyOtp(authState.email, authState.otp);
+
+    if (errorMsg) {
+      setAuthError({ email: "", otp: JSON.parse(errorMsg) });
+      return;
+    }
+
+    setLoading(false);
   };
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) =>
+    setAuthState({
+      ...authState,
+      [e.currentTarget.name]: e.currentTarget.value
+    });
 
   return (
     <div className="flex-1 flex flex-col w-full px-8 sm:max-w-md justify-center gap-2">
-      <Link
-        href="/"
-        className="absolute left-8 top-8 py-2 px-4 rounded-md no-underline text-foreground bg-btn-background hover:bg-btn-background-hover flex items-center group text-sm"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1"
+      <BackButton />
+      {pendingStatus ? (
+        <form
+          className="animate-in flex w-full justify-center items-center gap-2 text-foreground"
+          onSubmit={handleOtpSubmit}
         >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>{" "}
-        Back
-      </Link>
-
-      <form className="animate-in flex-1 flex flex-col w-full justify-center gap-2 text-foreground">
-        <label className="text-md" htmlFor="email">
-          Email
-        </label>
-        <input
-          className="rounded-md px-4 py-2 bg-inherit border mb-6"
-          name="email"
-          placeholder="you@example.com"
-          required
-        />
-        <label className="text-md" htmlFor="password">
-          Password
-        </label>
-        <input
-          className="rounded-md px-4 py-2 bg-inherit border mb-6"
-          type="password"
-          name="password"
-          placeholder="••••••••"
-          required
-        />
-        <SubmitButton
-          formAction={signIn}
-          className="bg-green-700 rounded-md px-4 py-2 text-foreground mb-2"
-          pendingText="Signing In..."
+          <Input
+            name="otp"
+            placeholder="Digital Code"
+            className=""
+            onChange={handleInputChange}
+            value={authState.otp}
+            error={authError.otp}
+          />
+          <Button
+            type="primary"
+            placeholder={"Sign In"}
+            disabled={loading}
+            loading={loading}
+            size="medium"
+            htmlType="submit"
+          >
+            Verify
+          </Button>
+        </form>
+      ) : (
+        <form
+          className="animate-in flex-1 flex flex-col w-full justify-center gap-2 text-foreground"
+          onSubmit={handleSubmit}
         >
-          Sign In
-        </SubmitButton>
-        <SubmitButton
-          formAction={signUp}
-          className="border border-foreground/20 rounded-md px-4 py-2 text-foreground mb-2"
-          pendingText="Signing Up..."
-        >
-          Sign Up
-        </SubmitButton>
-        {searchParams?.message && (
-          <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center">
-            {searchParams.message}
-          </p>
-        )}
-      </form>
+          <label className="text-md" htmlFor="email">
+            Email
+          </label>
+          <Input
+            name="email"
+            placeholder="you@example.com"
+            error={authError.email}
+            onChange={handleInputChange}
+            value={authState.email}
+          />
+          <Button
+            type="primary"
+            placeholder={"Sign In"}
+            disabled={loading}
+            loading={loading}
+            size="medium"
+            block
+            htmlType="submit"
+          >
+            Sign In
+          </Button>
+        </form>
+      )}
     </div>
   );
 }
