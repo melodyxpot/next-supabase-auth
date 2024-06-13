@@ -1,8 +1,6 @@
 "use client";
 import BackButton from "@/components/BackButton";
-import { ChangeEvent, FormEvent, useState } from "react";
-import { signInOtp, verifyOtp } from "@/utils/auth";
-import { Button, Input } from "@supabase/ui";
+import { useState } from "react";
 import LoginForm from "./_components/login-form";
 import OtpForm from "./_components/otp-form";
 

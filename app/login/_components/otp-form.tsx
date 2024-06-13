@@ -1,6 +1,6 @@
 import React, { Dispatch, FormEvent, SetStateAction, useState } from "react";
 import { AuthState } from "../page";
-import { verifyOtp } from "@/utils/auth";
+import { verifyOtp } from "../actions";
 import { Button, Input } from "@supabase/ui";
 
 interface Props {
@@ -23,7 +23,7 @@ export default function OtpForm({ state, setState, setPendingStatus }: Props) {
     const errorMsg = await verifyOtp(state.email, state.otp);
 
     if (errorMsg) {
-      setOtpError(JSON.parse(errorMsg));
+      setOtpError(errorMsg);
       return;
     }
 

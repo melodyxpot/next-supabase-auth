@@ -1,7 +1,7 @@
 import React, { Dispatch, FormEvent, SetStateAction, useState } from "react";
 import { AuthState } from "../page";
 import { Button, Input } from "@supabase/ui";
-import { signInOtp } from "@/utils/auth";
+import { signInOtp } from "../actions";
 
 interface Props {
   state: AuthState;
@@ -30,7 +30,6 @@ export default function LoginForm({
       setEmailError(error);
       return;
     }
-    console.log("--- SignOtp ---", data);
 
     setPendingStatus(true);
     setLoading(false);
